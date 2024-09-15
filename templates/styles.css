@@ -1,0 +1,42 @@
+/* DMの人物ごとのスタイル */
+.dm-user-container {
+    margin-bottom: 30px;
+}
+
+.dm-user-header {
+    font-size: 1.2em;
+    font-weight: bold;
+    margin-bottom: 10px;
+    padding: 10px;
+    background: #e9ecef;
+    border-radius: 5px;
+}
+
+.dm-thread {
+    background: #f1f1f1;
+    border-radius: 8px;
+    padding: 15px;
+    border: 1px solid #ddd;
+    margin-bottom: 10px;
+}
+
+.dm-message {
+    margin-bottom: 10px;
+    padding: 10px;
+    background: white;
+    border-radius: 5px;
+    border: 1px solid #ddd;
+}
+
+.dm-message.from-you {
+    background: #e1f5fe;
+}
+
+.dm-message.from-them {
+    background: #f9fbe7;
+}
+
+.dm-message-time {
+    font-size: 0.8em;
+    color: #666;
+}
