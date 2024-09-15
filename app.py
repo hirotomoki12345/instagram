@@ -9,14 +9,22 @@ app = Flask(__name__)
 app.secret_key = os.urandom(24)
 app.permanent_session_lifetime = timedelta(days=30)
 
-# Instagramクライアントの初期化
-ig_client = Client()
-
 # リクエスト制限用の変数
 request_counts = defaultdict(lambda: {'count': 0, 'last_reset': time()})
 
 MAX_REQUESTS = 100
 REQUEST_RESET_TIME = 3600  # 1時間
+
+def get_instagram_client():
+    if 'username' in session and 'password' in session:
+        client = Client()
+        try:
+            client.login(session['username'], session['password'])
+            return client
+        except Exception as e:
+            print(f"Failed to login with stored credentials: {e}")
+            return None
+    return None
 
 def check_rate_limit(username):
     now = time()
@@ -45,13 +53,14 @@ def login():
         password = request.form['password']
 
         try:
-            ig_client.login(username, password)
+            client = Client()
+            client.login(username, password)
             session['username'] = username
             session['password'] = password
             session.permanent = True
             return redirect(url_for('dashboard'))
-        except Exception as e:
-            return f"Login failed: {e}"
+        except Exception:
+            return render_template('login.html', error='Invalid username or password.')
 
     return render_template('login.html')
 
@@ -63,9 +72,13 @@ def dashboard():
     if not check_rate_limit(session['username']):
         return "Rate limit exceeded. Please try again later.", 429
 
+    client = get_instagram_client()
+    if client is None:
+        return redirect(url_for('login'))
+
     try:
-        user_id = ig_client.user_id_from_username(session['username'])
-        user_info = ig_client.user_info(user_id)
+        user_id = client.user_id_from_username(session['username'])
+        user_info = client.user_info(user_id)
     except Exception as e:
         return f"Failed to fetch user info: {e}"
 
@@ -79,8 +92,12 @@ def dm():
     if not check_rate_limit(session['username']):
         return "Rate limit exceeded. Please try again later.", 429
 
+    client = get_instagram_client()
+    if client is None:
+        return redirect(url_for('login'))
+
     try:
-        inbox = ig_client.direct_threads()
+        inbox = client.direct_threads()
     except Exception as e:
         return f"Failed to fetch DMs: {e}"
 
@@ -94,11 +111,15 @@ def fetch_dms():
     if not check_rate_limit(session['username']):
         return "Rate limit exceeded. Please try again later.", 429
 
+    client = get_instagram_client()
+    if client is None:
+        return redirect(url_for('login'))
+
     try:
-        inbox = ig_client.direct_threads()
+        inbox = client.direct_threads()
         response = []
         for thread in inbox:
-            messages = [msg.dict() for msg in ig_client.direct_messages(thread.id)]
+            messages = [msg.dict() for msg in client.direct_messages(thread.id)]
             response.append({
                 'thread_title': thread.thread_title,
                 'id': thread.id,
@@ -117,8 +138,12 @@ def send_dm(thread_id):
         return "Rate limit exceeded. Please try again later.", 429
 
     message = request.form['message']
+    client = get_instagram_client()
+    if client is None:
+        return redirect(url_for('login'))
+
     try:
-        ig_client.direct_answer(thread_id, message)
+        client.direct_answer(thread_id, message)
         return redirect(url_for('dm'))
     except Exception as e:
         return f"Failed to send DM: {e}"
