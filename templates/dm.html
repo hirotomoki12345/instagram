@@ -3,22 +3,170 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DM</title>
+    <title>Direct Messages</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .thread {
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 10px;
+            background: #fafafa;
+        }
+        .thread strong {
+            cursor: pointer;
+            display: block;
+            font-size: 1.2em;
+            padding: 5px;
+            background: #e0e0e0;
+            border-radius: 5px;
+            transition: background 0.3s;
+        }
+        .thread strong:hover {
+            background: #d0d0d0;
+        }
+        .messages {
+            margin-left: 20px;
+        }
+        .message {
+            margin-bottom: 5px;
+            padding: 5px;
+            background: #fff;
+            border-radius: 5px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .thread-content {
+            display: none;
+        }
+        .thread-content.show {
+            display: block;
+        }
+        form {
+            margin-top: 10px;
+            display: flex;
+            flex-direction: column;
+        }
+        input[type="text"] {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+        button {
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            background: #007bff;
+            color: #fff;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
+        button:hover:not(:disabled) {
+            background: #0056b3;
+        }
+    </style>
 </head>
 <body>
-    <h1>Direct Messages</h1>
-    <a href="{{ url_for('dashboard') }}">Back to Dashboard</a>
-    <ul>
-        {% for thread in inbox %}
-            <li>
-                <strong>{{ thread.thread_title }}</strong>
-                <ul>
-                    {% for message in thread.messages %}
-                        <li>{{ message.text }}</li>
-                    {% endfor %}
-                </ul>
-            </li>
-        {% endfor %}
-    </ul>
+    <div class="container">
+        <h1>Direct Messages</h1>
+        <a href="{{ url_for('dashboard') }}" style="display: block; text-align: center; margin-bottom: 20px; color: #007bff; text-decoration: none;">Back to Dashboard</a>
+        <ul id="threads">
+            {% for thread in inbox %}
+                <li class="thread" data-thread-id="{{ thread.id }}">
+                    <strong class="thread-title">{{ thread.thread_title }}</strong>
+                    <ul class="messages thread-content">
+                        {% for message in thread.messages %}
+                            <li class="message">{{ message.text }}</li>
+                        {% endfor %}
+                    </ul>
+                    <form action="{{ url_for('send_dm', thread_id=thread.id) }}" method="post" class="dm-form">
+                        <input type="text" name="message" placeholder="Type your message here" required>
+                        <button type="submit">Send</button>
+                    </form>
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <script>
+        document.querySelectorAll('.thread-title').forEach(title => {
+            title.addEventListener('click', (event) => {
+                const content = event.target.nextElementSibling;
+                content.classList.toggle('show');
+            });
+        });
+
+        document.querySelectorAll('.dm-form').forEach(form => {
+            form.addEventListener('submit', (event) => {
+                const button = form.querySelector('button');
+                button.disabled = true;
+                button.textContent = 'Sending...';
+            });
+        });
+
+        function updateDMs() {
+            fetch('{{ url_for('fetch_dms') }}')
+                .then(response => response.json())
+                .then(data => {
+                    // 更新処理
+                    const threads = document.getElementById('threads');
+                    threads.innerHTML = '';  // 古い内容をクリア
+
+                    data.inbox.forEach(thread => {
+                        const threadElement = document.createElement('li');
+                        threadElement.className = 'thread';
+                        threadElement.setAttribute('data-thread-id', thread.id);
+                        threadElement.innerHTML = `
+                            <strong class="thread-title">${thread.thread_title}</strong>
+                            <ul class="messages thread-content">
+                                ${thread.messages.map(message => `<li class="message">${message.text}</li>`).join('')}
+                            </ul>
+                            <form action="/send_dm/${thread.id}" method="post" class="dm-form">
+                                <input type="text" name="message" placeholder="Type your message here" required>
+                                <button type="submit">Send</button>
+                            </form>
+                        `;
+                        threads.appendChild(threadElement);
+                    });
+
+                    document.querySelectorAll('.thread-title').forEach(title => {
+                        title.addEventListener('click', (event) => {
+                            const content = event.target.nextElementSibling;
+                            content.classList.toggle('show');
+                        });
+                    });
+
+                    document.querySelectorAll('.dm-form').forEach(form => {
+                        form.addEventListener('submit', (event) => {
+                            const button = form.querySelector('button');
+                            button.disabled = true;
+                            button.textContent = 'Sending...';
+                        });
+                    });
+                });
+        }
+
+        setInterval(updateDMs, 30000);  // 30秒ごとに更新
+    </script>
 </body>
 </html>
